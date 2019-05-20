@@ -1,0 +1,52 @@
+#%RAML 1.0
+baseUri: localhost:8022/ticket
+title: Sample API
+/movie:
+  get:
+    responses: 
+      '200':
+        description: Get All Movie Details
+        body: 
+          application/json: 
+            example: { "movieid": "", "moviename": "", "releasedate": "", "cast": "", "director": "", "language": "" }
+  post:
+    body: 
+      application/json: 
+        example: { "movieid": "", "moviename": "", "releasedate": "", "cast": "", "director": "", "language": "" }
+    responses: 
+      '200':
+        description: Insert Movie Details
+        body: 
+          application/json: 
+            example: 
+              {"Status": "Added"}
+  '/{movieid}':
+    get:
+      responses: 
+        '200':
+          description: Get Movie Details
+          body: 
+            application/json: 
+              example: { "movieid": "", "moviename": "", "releasedate": "", "cast": "", "director": "", "language": "" }
+    put:
+      body: 
+        application/json: 
+          example: { "movieid": "", "moviename": "", "releasedate": "", "cast": "", "director": "", "language": "" }
+      responses: 
+        '200':
+          description: 
+          body: 
+            application/json: 
+              example:
+                {"Status": "Updated"}
+    delete:
+      body: 
+        application/json: 
+          example: { "movieid": "", "moviename": "", "releasedate": "", "cast": "", "director": "", "language": "" }
+      responses: 
+        '200':
+          description: 
+          body: 
+            application/json:
+              example:
+                {"Status": "Deleted"} 

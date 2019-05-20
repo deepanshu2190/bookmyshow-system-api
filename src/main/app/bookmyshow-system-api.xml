@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw" xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:spring="http://www.springframework.org/schema/beans" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/apikit http://www.mulesoft.org/schema/mule/apikit/current/mule-apikit.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.1.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd">
+    <http:listener-config name="bookmyshow-system-api-httpListenerConfig" host="localhost" port="8022" doc:name="HTTP Listener Configuration" />
+    <apikit:config name="bookmyshow-system-api-config" raml="bookmyshow-system-api.raml" consoleEnabled="false" doc:name="Router" keepRamlBaseUri="false"/>
+    <db:mysql-config name="MySQL_Configuration" host="localhost" port="3306" user="root" password="1234" database="bookmyshow" doc:name="MySQL Configuration"/>
+    <flow name="bookmyshow-system-api-main">
+        <http:listener config-ref="bookmyshow-system-api-httpListenerConfig" path="/api/*" doc:name="HTTP" />
+        <apikit:router config-ref="bookmyshow-system-api-config" doc:name="APIkit Router" />
+        <exception-strategy ref="bookmyshow-system-api-apiKitGlobalExceptionMapping" doc:name="Reference Exception Strategy" />
+    </flow>
+    <flow name="bookmyshow-system-api-console">
+        <http:listener config-ref="bookmyshow-system-api-httpListenerConfig" path="/console/*" doc:name="HTTP" />
+        <apikit:console config-ref="bookmyshow-system-api-config" doc:name="APIkit Console" />
+    </flow>
+
+    <flow name="get:/movie:bookmyshow-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"select * from movie"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="#[payload]" level="INFO" doc:name="logGetAllMoviPrint"/>
+        <flow-ref name="getAllMovieSub_Flow" doc:name="getAllMovieSub_Flow"/>
+
+    </flow>
+    <sub-flow name="getAllMovieSub_Flow">
+        <logger message="#[payload]" level="INFO" doc:name="logDBAllMovie"/>
+        <db:select config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:select>
+        <logger message="#[payload]" level="INFO" doc:name="logDBAllMovie"/>
+    </sub-flow>
+
+    <flow name="post:/movie:bookmyshow-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"insert into movie (movieid, moviename, releasedate, cast, director, language) values (
+"
+++ "'" ++ payload.movieid ++ "'" ++ ","
+++ "'" ++ payload.moviename ++ "'" ++ ","
+++ "'" ++ payload.releasedate ++ "'" ++ ","
+++ "'" ++ payload.cast ++ "'" ++ ","
+++ "'" ++ payload.director ++ "'" ++ ","
+++ "'" ++ payload.language ++ "'" ++ ")"]]></dw:set-payload>
+        </dw:transform-message>
+        <logger message="#[payload]" level="INFO" doc:name="logInsertMovie"/>
+        <flow-ref name="insetMovieSub_Flow" doc:name="insetMovieSub_Flow"/>
+
+    </flow>
+    <sub-flow name="insetMovieSub_Flow">
+        <logger level="INFO" doc:name="Logger"/>
+        <db:insert config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:insert>
+        <logger level="INFO" doc:name="Logger"/>
+    </sub-flow>
+    <sub-flow name="put-bookmyshow-system-apiSub_Flow">
+        <logger message="Before Data Modify Log &quot;#[payload]&quot;" level="INFO" doc:name="logDbPutBeforeDataEnter"/>
+        <db:update config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:update>
+        <logger message="After Data Modify Log &quot;#[payload]&quot;" level="INFO" doc:name="logDbPutAfterDataEnter"/>
+    </sub-flow>
+    <flow name="put:/movie/{movieid}:bookmyshow-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"UPDATE movie SET releasedate = '" ++ payload.releasedate ++ "'
+where movieid = '" ++ inboundProperties.'http.uri.params'.movieid ++ "'"]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="put-bookmyshow-system-apiSub_Flow" doc:name="put-bookmyshow-system-apiSub_Flow"/>
+        <logger message="Update Logs &quot;#[payload]&quot; " level="INFO" doc:name="Logger"/>
+
+    </flow>
+    <flow name="delete:/movie/{movieid}:bookmyshow-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"Delete from movie where movieid= '" ++ inboundProperties.'http.uri.params'.movieid ++ "'"]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="deleteMovieId-bookmyshow-system-apiSub_Flow" doc:name="deleteMovieId-bookmyshow-system-apiSub_Flow"/>
+        <logger message="MovieId Delete '#[payload]'" level="INFO" doc:name="logDeleteMovieId"/>
+
+    </flow>
+    <sub-flow name="deleteMovieId-bookmyshow-system-apiSub_Flow">
+        <logger level="INFO" doc:name="logDbDeleteMovieId"/>
+        <db:delete config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:delete>
+    </sub-flow>
+    <flow name="get:/movie/{movieid}:bookmyshow-system-api-config">
+        <byte-array-to-string-transformer doc:name="Byte Array to String"/>
+        <dw:transform-message doc:name="Transform Message">
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+"Select * from movie where movieid= '" ++ inboundProperties.'http.uri.params'.movieid ++ "'"]]></dw:set-payload>
+        </dw:transform-message>
+        <flow-ref name="getMovieId-bookmyshow-system-apiSub_Flow" doc:name="getMovieId-bookmyshow-system-apiSub_Flow"/>
+        <logger message="Get Movie Details Searched by Movieid '#[payload]' #[message.inboundProperties.'http.uri.params']" level="INFO" doc:name="logGetMovieIdMessage"/>
+
+    </flow>
+    <sub-flow name="getMovieId-bookmyshow-system-apiSub_Flow">
+        <logger level="INFO" doc:name="logDbGetMovieId"/>
+        <db:select config-ref="MySQL_Configuration" doc:name="Database">
+            <db:dynamic-query><![CDATA[#[payload]]]></db:dynamic-query>
+        </db:select>
+    </sub-flow>
+    <apikit:mapping-exception-strategy name="bookmyshow-system-api-apiKitGlobalExceptionMapping">
+        <apikit:mapping statusCode="404">
+            <apikit:exception value="org.mule.module.apikit.exception.NotFoundException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Resource not found&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="405">
+            <apikit:exception value="org.mule.module.apikit.exception.MethodNotAllowedException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Method not allowed&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="415">
+            <apikit:exception value="org.mule.module.apikit.exception.UnsupportedMediaTypeException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Unsupported media type&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="406">
+            <apikit:exception value="org.mule.module.apikit.exception.NotAcceptableException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Not acceptable&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+        <apikit:mapping statusCode="400">
+            <apikit:exception value="org.mule.module.apikit.exception.BadRequestException" />
+            <set-property propertyName="Content-Type" value="application/json" doc:name="Property" />
+            <set-payload value="{ &quot;message&quot;: &quot;Bad request&quot; }" doc:name="Set Payload" />
+        </apikit:mapping>
+    </apikit:mapping-exception-strategy>
+</mule>
